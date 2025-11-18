@@ -3,6 +3,17 @@
 local DussChatOptions = {}
 
 function DussChatOptions:CreatePanel()
+    -- Ensure DussChatDB is initialized
+    if not DussChatDB then
+        DussChatDB = {
+            fontSize = 14,
+            maxLines = 100,
+            chatAlpha = 1.0,
+            enableClassColors = true,
+            hideBlizzardChat = true
+        }
+    end
+
     local panel = CreateFrame("Frame", "DussChatOptionsPanel", UIParent, "BackdropTemplate")
     panel:SetSize(500, 450)
     panel:SetPoint("CENTER", UIParent, "CENTER")
