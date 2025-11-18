@@ -1,0 +1,8 @@
+## Interface: 110000
+## Title: DussChat
+## Notes: A custom chat frame
+## Author: Dussey
+## Version: 1.0.0
+## SavedVariables: DussChatDB
+
+DussChat.lua
