@@ -3,6 +3,8 @@
 local DussChatOptions = {}
 
 function DussChatOptions:CreatePanel()
+    DussChatLogger:Info("Creating DussChat options panel")
+
     -- Ensure DussChatDB is initialized
     if not DussChatDB then
         DussChatDB = {
@@ -12,6 +14,7 @@ function DussChatOptions:CreatePanel()
             enableClassColors = true,
             hideBlizzardChat = true
         }
+        DussChatLogger:Warning("DussChatDB was not initialized, created defaults in options panel")
     end
 
     local panel = CreateFrame("Frame", "DussChatOptionsPanel", UIParent, "BackdropTemplate")
@@ -146,18 +149,25 @@ function DussChatOptions:CreatePanel()
 
     panel:Hide()
 
+    DussChatLogger:Info("Options panel created successfully")
     return panel
 end
 
 -- Slash command for options
 SLASH_DUSSCHATOPTIONS1 = "/dusschatoptions"
 SlashCmdList["DUSSCHATOPTIONS"] = function()
+    DussChatLogger:Debug("Options panel slash command executed")
+
     if DussChatOptions.panel then
         if DussChatOptions.panel:IsShown() then
             DussChatOptions.panel:Hide()
+            DussChatLogger:Info("Options panel hidden")
         else
             DussChatOptions.panel:Show()
+            DussChatLogger:Info("Options panel shown")
         end
+    else
+        DussChatLogger:Warning("Options panel not initialized")
     end
 end
 
@@ -166,6 +176,13 @@ local optionsFrame = CreateFrame("Frame")
 optionsFrame:RegisterEvent("ADDON_LOADED")
 optionsFrame:SetScript("OnEvent", function(self, event, addonName)
     if event == "ADDON_LOADED" and addonName == "DussChat" then
-        DussChatOptions.panel = DussChatOptions:CreatePanel()
+        DussChatLogger:LoadEvent("Loading DussChat options panel")
+        local success, err = pcall(function()
+            DussChatOptions.panel = DussChatOptions:CreatePanel()
+        end)
+
+        if not success then
+            DussChatLogger:Error("Failed to create options panel", tostring(err))
+        end
     end
 end)
