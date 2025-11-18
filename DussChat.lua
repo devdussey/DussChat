@@ -1,6 +1,15 @@
 -- DussChat Addon
 local DussChat = {}
 
+-- Default settings
+local defaults = {
+    fontSize = 14,
+    maxLines = 100,
+    chatAlpha = 1.0,
+    enableClassColors = true,
+    hideBlizzardChat = true
+}
+
 function DussChat:CreateFrame()
     local f = CreateFrame("Frame", "DussChatFrame", UIParent)
     f:SetSize(800, 400)
@@ -34,6 +43,26 @@ function DussChat:CreateFrame()
         f:Hide()
     end)
 
+    -- Scrolling Message Frame for chat display
+    local scrollFrame = CreateFrame("ScrollingMessageFrame", "DussChatScrollFrame", f)
+    scrollFrame:SetSize(770, 335)
+    scrollFrame:SetPoint("TOPLEFT", f, "TOPLEFT", 15, -35)
+    scrollFrame:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -15, 40)
+    scrollFrame:SetFont("Fonts/FRIZQT__.TTF", DussChatDB.fontSize or 14)
+    scrollFrame:SetJustifyH("LEFT")
+    scrollFrame:SetFading(false)
+    scrollFrame:SetMaxLines(DussChatDB.maxLines or 100)
+    scrollFrame:EnableMouseWheel(true)
+    scrollFrame:SetScript("OnMouseWheel", function(self, delta)
+        if delta > 0 then
+            self:ScrollUp()
+        else
+            self:ScrollDown()
+        end
+    end)
+
+    self.scrollFrame = scrollFrame
+
     -- Input box frame at bottom
     local inputFrame = CreateFrame("Frame", nil, f)
     inputFrame:SetSize(700, 20)
@@ -47,13 +76,15 @@ function DussChat:CreateFrame()
     -- Text input
     local input = CreateFrame("EditBox", "DussChatInputBox", inputFrame)
     input:SetSize(700, 20)
-    input:SetPoint("TOPLEFT", inputFrame, "TOPLEFT", 0, 0)
+    input:SetPoint("TOPLEFT", inputFrame, "TOPLEFT", 5, 0)
     input:SetFont("Fonts/FRIZQT__.TTF", 12)
     input:SetMaxLetters(255)
     input:SetTextColor(1, 1, 1)
     input:SetAutoFocus(false)
     input:SetMultiLine(false)
     input:SetCountInvisibleLetters(false)
+    input:EnableKeyboard(true)
+    input:SetEnabled(true)
 
     input:SetScript("OnEnterPressed", function(self)
         local text = self:GetText()
@@ -91,7 +122,7 @@ function DussChat:CreateFrame()
         self:StopMovingOrSizing()
     end)
 
-    self.frame = f
+    self.mainFrame = f
 
     C_Timer.After(0.1, function()
         f:Show()
@@ -115,9 +146,122 @@ function DussChat:ShowBlizzardChat()
     ChatFrame5:Show()
 end
 
+function DussChat:AddMessage(text, r, g, b)
+    if self.scrollFrame then
+        self.scrollFrame:AddMessage(text, r or 1, g or 1, b or 1)
+    end
+end
+
+function DussChat:SetupChatEvents()
+    local chatEvents = {
+        "CHAT_MSG_SAY",
+        "CHAT_MSG_YELL",
+        "CHAT_MSG_WHISPER",
+        "CHAT_MSG_WHISPER_INFORM",
+        "CHAT_MSG_PARTY",
+        "CHAT_MSG_PARTY_LEADER",
+        "CHAT_MSG_RAID",
+        "CHAT_MSG_RAID_LEADER",
+        "CHAT_MSG_RAID_WARNING",
+        "CHAT_MSG_INSTANCE_CHAT",
+        "CHAT_MSG_INSTANCE_CHAT_LEADER",
+        "CHAT_MSG_GUILD",
+        "CHAT_MSG_OFFICER",
+        "CHAT_MSG_EMOTE",
+        "CHAT_MSG_TEXT_EMOTE",
+        "CHAT_MSG_SYSTEM",
+        "CHAT_MSG_CHANNEL",
+        "CHAT_MSG_ACHIEVEMENT",
+        "CHAT_MSG_LOOT",
+        "CHAT_MSG_MONEY"
+    }
+
+    local chatFrame = CreateFrame("Frame")
+    for _, event in ipairs(chatEvents) do
+        chatFrame:RegisterEvent(event)
+    end
+
+    chatFrame:SetScript("OnEvent", function(self, event, ...)
+        local text, sender, _, _, _, _, _, _, channel = ...
+        local r, g, b = 1, 1, 1
+        local message = ""
+
+        -- Color coding based on event type
+        if event == "CHAT_MSG_SAY" then
+            r, g, b = 1, 1, 1
+            message = string.format("[Say] %s: %s", sender, text)
+        elseif event == "CHAT_MSG_YELL" then
+            r, g, b = 1, 0.25, 0.25
+            message = string.format("[Yell] %s: %s", sender, text)
+        elseif event == "CHAT_MSG_WHISPER" then
+            r, g, b = 1, 0.5, 1
+            message = string.format("[From %s]: %s", sender, text)
+        elseif event == "CHAT_MSG_WHISPER_INFORM" then
+            r, g, b = 1, 0.5, 1
+            message = string.format("[To %s]: %s", sender, text)
+        elseif event == "CHAT_MSG_PARTY" or event == "CHAT_MSG_PARTY_LEADER" then
+            r, g, b = 0.67, 0.67, 1
+            message = string.format("[Party] %s: %s", sender, text)
+        elseif event == "CHAT_MSG_RAID" or event == "CHAT_MSG_RAID_LEADER" then
+            r, g, b = 1, 0.5, 0
+            message = string.format("[Raid] %s: %s", sender, text)
+        elseif event == "CHAT_MSG_RAID_WARNING" then
+            r, g, b = 1, 0.28, 0
+            message = string.format("[Raid Warning] %s: %s", sender, text)
+        elseif event == "CHAT_MSG_INSTANCE_CHAT" or event == "CHAT_MSG_INSTANCE_CHAT_LEADER" then
+            r, g, b = 1, 0.5, 0
+            message = string.format("[Instance] %s: %s", sender, text)
+        elseif event == "CHAT_MSG_GUILD" then
+            r, g, b = 0.25, 1, 0.25
+            message = string.format("[Guild] %s: %s", sender, text)
+        elseif event == "CHAT_MSG_OFFICER" then
+            r, g, b = 0.25, 0.75, 0.25
+            message = string.format("[Officer] %s: %s", sender, text)
+        elseif event == "CHAT_MSG_EMOTE" then
+            r, g, b = 1, 0.5, 0.25
+            message = string.format("%s %s", sender, text)
+        elseif event == "CHAT_MSG_TEXT_EMOTE" then
+            r, g, b = 1, 0.5, 0.25
+            message = text
+        elseif event == "CHAT_MSG_SYSTEM" then
+            r, g, b = 1, 1, 0
+            message = text
+        elseif event == "CHAT_MSG_CHANNEL" then
+            r, g, b = 1, 0.75, 0.75
+            message = string.format("[%s] %s: %s", channel, sender, text)
+        elseif event == "CHAT_MSG_ACHIEVEMENT" then
+            r, g, b = 1, 1, 0
+            message = text
+        elseif event == "CHAT_MSG_LOOT" or event == "CHAT_MSG_MONEY" then
+            r, g, b = 0, 1, 1
+            message = text
+        end
+
+        DussChat:AddMessage(message, r, g, b)
+    end)
+
+    self.chatEventFrame = chatFrame
+end
+
+function DussChat:InitDB()
+    -- Initialize saved variables with defaults
+    if not DussChatDB then
+        DussChatDB = {}
+    end
+    for k, v in pairs(defaults) do
+        if DussChatDB[k] == nil then
+            DussChatDB[k] = v
+        end
+    end
+end
+
 function DussChat:Init()
+    self:InitDB()
     self:CreateFrame()
-    self:HideBlizzardChat()
+    self:SetupChatEvents()
+    if DussChatDB.hideBlizzardChat then
+        self:HideBlizzardChat()
+    end
 end
 
 -- Slash commands
@@ -132,11 +276,11 @@ SlashCmdList["DUSSCHAT"] = function(msg)
             DussChat:ShowBlizzardChat()
         end
     else
-        if DussChat.frame:IsShown() then
-            DussChat.frame:Hide()
+        if DussChat.mainFrame:IsShown() then
+            DussChat.mainFrame:Hide()
         else
-            DussChat.frame:Show()
-            DussChat.frame:Raise()
+            DussChat.mainFrame:Show()
+            DussChat.mainFrame:Raise()
         end
     end
 end

@@ -6,3 +6,4 @@
 ## SavedVariables: DussChatDB
 
 DussChat.lua
+DussChatOptions.lua
