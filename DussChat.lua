@@ -11,9 +11,21 @@ local defaults = {
 }
 
 function DussChat:CreateFrame()
-    local f = CreateFrame("Frame", "DussChatFrame", UIParent)
-    f:SetSize(800, 400)
-    f:SetPoint("TOPLEFT", 20, -20)
+    DussChatLogger:Info("Creating DussChat main frame")
+
+    local success, result = pcall(function()
+        local f = CreateFrame("Frame", "DussChatFrame", UIParent)
+        f:SetSize(800, 400)
+        f:SetPoint("TOPLEFT", 20, -20)
+        return f
+    end)
+
+    if not success then
+        DussChatLogger:Error("Failed to create frame", result)
+        return
+    end
+
+    local f = result
 
     -- Background texture
     local bg = f:CreateTexture(nil, "BACKGROUND")
@@ -127,10 +139,14 @@ function DussChat:CreateFrame()
     C_Timer.After(0.1, function()
         f:Show()
         f:Raise()
+        DussChatLogger:Info("Main frame displayed successfully")
     end)
+
+    DussChatLogger:Info("DussChat frame created successfully")
 end
 
 function DussChat:HideBlizzardChat()
+    DussChatLogger:Info("Hiding Blizzard chat frames")
     ChatFrame1:Hide()
     ChatFrame2:Hide()
     ChatFrame3:Hide()
@@ -139,6 +155,7 @@ function DussChat:HideBlizzardChat()
 end
 
 function DussChat:ShowBlizzardChat()
+    DussChatLogger:Info("Showing Blizzard chat frames")
     ChatFrame1:Show()
     ChatFrame2:Show()
     ChatFrame3:Show()
@@ -153,6 +170,8 @@ function DussChat:AddMessage(text, r, g, b)
 end
 
 function DussChat:SetupChatEvents()
+    DussChatLogger:Info("Setting up chat event handlers")
+
     local chatEvents = {
         "CHAT_MSG_SAY",
         "CHAT_MSG_YELL",
@@ -181,13 +200,16 @@ function DussChat:SetupChatEvents()
         chatFrame:RegisterEvent(event)
     end
 
-    chatFrame:SetScript("OnEvent", function(self, event, ...)
-        local text, sender, _, _, _, _, _, _, channel = ...
-        local r, g, b = 1, 1, 1
-        local message = ""
+    DussChatLogger:Debug("Registered " .. #chatEvents .. " chat events")
 
-        -- Color coding based on event type
-        if event == "CHAT_MSG_SAY" then
+    chatFrame:SetScript("OnEvent", function(self, event, ...)
+        local success, err = pcall(function()
+            local text, sender, _, _, _, _, _, _, channel = ...
+            local r, g, b = 1, 1, 1
+            local message = ""
+
+            -- Color coding based on event type
+            if event == "CHAT_MSG_SAY" then
             r, g, b = 1, 1, 1
             message = string.format("[Say] %s: %s", sender, text)
         elseif event == "CHAT_MSG_YELL" then
@@ -237,30 +259,58 @@ function DussChat:SetupChatEvents()
             message = text
         end
 
-        DussChat:AddMessage(message, r, g, b)
+            DussChat:AddMessage(message, r, g, b)
+        end)
+
+        if not success then
+            DussChatLogger:Error("Chat event handler error: " .. event, tostring(err))
+        end
     end)
 
     self.chatEventFrame = chatFrame
+    DussChatLogger:Info("Chat event handlers initialized successfully")
 end
 
 function DussChat:InitDB()
+    DussChatLogger:LoadEvent("Initializing DussChat database")
+
     -- Initialize saved variables with defaults
     if not DussChatDB then
         DussChatDB = {}
+        DussChatLogger:Info("Created new DussChatDB")
+    else
+        DussChatLogger:Info("Loaded existing DussChatDB")
     end
+
     for k, v in pairs(defaults) do
         if DussChatDB[k] == nil then
             DussChatDB[k] = v
+            DussChatLogger:Debug("Set default value for " .. k .. " = " .. tostring(v))
         end
     end
+
+    DussChatLogger:Info("Database initialization complete")
 end
 
 function DussChat:Init()
-    self:InitDB()
-    self:CreateFrame()
-    self:SetupChatEvents()
-    if DussChatDB.hideBlizzardChat then
-        self:HideBlizzardChat()
+    DussChatLogger:Startup("=== DussChat Initialization Started ===")
+
+    local success, err = pcall(function()
+        self:InitDB()
+        self:CreateFrame()
+        self:SetupChatEvents()
+
+        if DussChatDB.hideBlizzardChat then
+            self:HideBlizzardChat()
+        end
+    end)
+
+    if success then
+        DussChatLogger:Startup("=== DussChat Initialization Complete ===")
+        print("|cFF00FFFF[DussChat]|r Loaded successfully! Type /dclogs to view logs")
+    else
+        DussChatLogger:Error("DussChat initialization failed", tostring(err))
+        print("|cFFFF0000[DussChat]|r Failed to load! Error: " .. tostring(err))
     end
 end
 
@@ -269,6 +319,8 @@ SLASH_DUSSCHAT1 = "/dusschat"
 SLASH_DUSSCHAT2 = "/dc"
 SlashCmdList["DUSSCHAT"] = function(msg)
     msg = msg:lower()
+    DussChatLogger:Debug("Slash command executed: /dusschat " .. msg)
+
     if msg == "blizzard" then
         if ChatFrame1:IsShown() then
             DussChat:HideBlizzardChat()
@@ -278,9 +330,11 @@ SlashCmdList["DUSSCHAT"] = function(msg)
     else
         if DussChat.mainFrame:IsShown() then
             DussChat.mainFrame:Hide()
+            DussChatLogger:Info("Main frame hidden via slash command")
         else
             DussChat.mainFrame:Show()
             DussChat.mainFrame:Raise()
+            DussChatLogger:Info("Main frame shown via slash command")
         end
     end
 end
@@ -290,6 +344,7 @@ local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
 loader:SetScript("OnEvent", function(self, event, addon)
     if addon == "DussChat" then
+        DussChatLogger:LoadEvent("ADDON_LOADED event fired for DussChat")
         DussChat:Init()
     end
 end)
